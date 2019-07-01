@@ -2,7 +2,6 @@
 import png
 import sys
 import os
-from subprocess import call, Popen, PIPE
 from math import *
 from operator import itemgetter
 from utils import *
