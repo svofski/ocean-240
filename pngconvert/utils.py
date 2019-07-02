@@ -1,3 +1,4 @@
+import png
 from math import sqrt
 from functools import reduce
 
@@ -213,3 +214,19 @@ def test():
     #print [x for x in rle([0]*100)]
 
 #test()
+
+def readPNG(filename):
+    reader = None
+    pix = None
+    w, h = -1, -1
+    try:
+        if reader == None:        
+            reader=png.Reader(filename)
+        img = reader.asRGBA8()
+        pix = list(img[2])
+    except:
+        return 0,0,None
+    w, h = len(pix[0]), len(pix)
+    return w/4,h,pix
+
+

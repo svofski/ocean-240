@@ -1,12 +1,10 @@
 #!/usr/bin/env python
-import png
 import sys
 import os
 from math import *
 from operator import itemgetter
 from utils import *
 from base64 import b64encode
-import array
 
 class Stubnik:
     def __init__(self):
@@ -18,22 +16,6 @@ class Stubnik:
     def gettext(self, label, db, palidx):
         return self.text % (label, palidx, label, label, label, db)
    
-def readPNG(filename):
-    reader = None
-    pix = None
-    w, h = -1, -1
-    try:
-        if reader == None:        
-            reader=png.Reader(filename)
-        img = reader.asRGBA8()
-        pix = list(img[2])
-    except:
-        print('Could not open image, file exists?')
-        return None
-    w, h = len(pix[0]), len(pix)
-    print ('Opened image %s %dx%d' % (filename, w/4, h))
-    return pix
-
 class Colornik:
     RED = getNearest233((255,0,0,255))
     MAGENTA = getNearest233((255,0,255,255))
@@ -76,12 +58,12 @@ class Colornik:
         keys = set([self.which(entry[0]) for entry in h])
         try:
             names = [Colornik.NAMES[self.which(entry[0])] for entry in h]
-            print ("Found these colours: %s" % ", ".join(names))
+            print ("Нашлись такие цвета: %s" % ", ".join(names))
             lut_sets = [set(x) for x in Colornik.LUTS]
             palette = lut_sets.index(keys)
-            print ("Guessed palette %d" % palette)
+            print ("Угадана палитра №%d" % palette)
         except:
-            print ("Could not guess palette, assuming 0 (NRGB)")
+            print ("Не получилось угадать палитру, принимаем 0 (NRGB)")
             palette = 0
         self.palette_index = palette
         return palette
@@ -134,14 +116,13 @@ class Colornik:
             xbase = (colidx & ~1) * 4
             for y in range(len(indexed)):
                 ocho = indexed[y][xbase:xbase+8]
-                # even columns take bit 1, odd columns bit 0 (for example)
+                # even columns take bit 1, odd columns bit 0
                 if colidx & 1 == 0:
                     octet = sum([(x & 1) << i for i,x in enumerate(ocho)])
                 else:
                     octet = sum([((x & 2)>>1) << i for i,x in enumerate(ocho)])
                 data[dataidx] = octet
                 dataidx += 1
-            #print()
         return ncolumns, self.vlines, data                
 
     def process(self):
@@ -236,11 +217,12 @@ if assemblyname == None:
 basename = os.path.basename(inputname)
 (shortname, ext) = os.path.splitext(basename)
 
-try:
-    pic = readPNG(inputname)
-except:
+nc,nr,pic = readPNG(inputname)
+if pic == None:
     print("Чего-то не так с картинкой, должен быть цветной PNG")
     exit(0)
+
+print ('Открылась картинка %s %dx%d' % (inputname, nc, nr))
 
 k = Colornik(pic, shortname)
 if palette != None:
@@ -248,7 +230,7 @@ if palette != None:
 
 encodnik = Encodnik(k, encodage)
 
-print("Writing output to %s" % assemblyname)
+print("Записываем результат в %s" % assemblyname)
 
 with open(assemblyname, "w") as fo:
     if stub:
