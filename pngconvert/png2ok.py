@@ -175,47 +175,53 @@ def usagi():
             for i,y in enumerate(Colornik.LUTS)]
     print("\n".join(m1))
 
+def getparams():
+    inputname=None
+    asmname=None
+    encodage=Encodnik.BYTES
+    stub=False
+    palette=None
+
+    for i,v in enumerate(sys.argv[1:]):
+        if v[0] == '-':
+            if v[1:] == 'base64':
+                encodage=Encodnik.BASE64
+            elif v[1:] == 'stub':
+                stub=True
+            elif v[1:4] == 'pal':
+                try:
+                    palette = int(v[4])
+                except:
+                    print("Форсирование палитры с индексом 3: -pal3")
+                    exit(1)
+            else:
+                print("Нет такой опции: ", v)
+                exit(0)
+            continue
+
+        if inputname == None:
+            inputname = v
+        elif asmname == None:
+            asmname = v
+        else:
+            print("Многовато параметров. Не знаю, что с ними делать.")
+            exit(1)
+
+    if asmname == None:
+        (origname, ext) = os.path.splitext(inputname)
+        asmname = origname + ['.inc','.asm'][stub]
+
+    basename = os.path.basename(inputname)
+    (shortname, ext) = os.path.splitext(basename)
+
+    return inputname,asmname,shortname,encodage,stub,palette
+
+
 if len(sys.argv) < 2:
     usagi()
     exit(1)
 
-inputname=None
-assemblyname=None
-encodage=Encodnik.BYTES
-stub=False
-palette=None
-
-for i,v in enumerate(sys.argv[1:]):
-    if v[0] == '-':
-        if v[1:] == 'base64':
-            encodage=Encodnik.BASE64
-        elif v[1:] == 'stub':
-            stub=True
-        elif v[1:4] == 'pal':
-            try:
-                palette = int(v[4])
-            except:
-                print("Форсирование палитры с индексом 3: -pal3")
-                exit(1)
-        else:
-            print("Нет такой опции: ", v)
-            exit(0)
-        continue
-
-    if inputname == None:
-        inputname = v
-    elif assemblyname == None:
-        assemblyname = v
-    else:
-        print("Многовато параметров. Не знаю, что с ними делать.")
-        exit(1)
-
-if assemblyname == None:
-    (origname, ext) = os.path.splitext(inputname)
-    assemblyname = origname + ['.inc','.asm'][stub]
-
-basename = os.path.basename(inputname)
-(shortname, ext) = os.path.splitext(basename)
+inputname,asmname,shortname,encodage,stub,palette = getparams()
 
 nc,nr,pic = readPNG(inputname)
 if pic == None:
@@ -230,9 +236,9 @@ if palette != None:
 
 encodnik = Encodnik(k, encodage)
 
-print("Записываем результат в %s" % assemblyname)
+print("Записываем результат в %s" % asmname)
 
-with open(assemblyname, "w") as fo:
+with open(asmname, "w") as fo:
     if stub:
         fo.write(Stubnik().gettext(shortname, encodnik.encode(), 
             k.get_palette_index()))
