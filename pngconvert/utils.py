@@ -216,12 +216,9 @@ def test():
 #test()
 
 def readPNG(filename):
-    reader = None
     pix = None
-    w, h = -1, -1
     try:
-        if reader == None:        
-            reader=png.Reader(filename)
+        reader = png.Reader(filename)
         img = reader.asRGBA8()
         pix = list(img[2])
     except:

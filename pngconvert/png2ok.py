@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 import sys
 import os
-from math import *
 from operator import itemgetter
 from utils import *
 from base64 import b64encode
@@ -26,7 +25,6 @@ class Colornik:
     WHITE = getNearest233((255,255,255,255))
     BLACK = getNearest233((0,0,0,255))
 
-    ALL = [RED,MAGENTA,GREEN,BLUE,YELLOW,CYAN,WHITE,BLACK]
     NAMES = {RED: "красный", MAGENTA: "малиновый", GREEN: "зеленый", 
             BLUE: "синий", YELLOW: "жёлтый", CYAN: "голубой", WHITE: "белый", 
             BLACK: "черный"}
@@ -42,22 +40,21 @@ class Colornik:
 
     LUTS = (LUT0T,LUT1T,LUT2T,LUT3T,LUT4T,LUT5T,LUT6T,LUT7T)
 
-    def __init__(self, pic, origname):
+    def __init__(self, pic, forced_palette = None):
         self.pic = pic
         self.hpixels = len(pic[0])//4
         self.vlines = len(pic)
-        self.origname = origname
-        self.forced = None
+        self.palette_index = forced_palette
      
-    def which(self, mystery):
+    def bestmatch(self, mystery):
         m = c233toRGB(mystery)
         dist = [(colordist(c233toRGB(x), m),x) for x in Colornik.NAMES.keys()]
         return sorted(dist)[0][1]
 
     def match_histogram(self, h):
-        keys = set([self.which(entry[0]) for entry in h])
+        keys = set([self.bestmatch(entry[0]) for entry in h])
         try:
-            names = [Colornik.NAMES[self.which(entry[0])] for entry in h]
+            names = [Colornik.NAMES[self.bestmatch(entry[0])] for entry in h]
             print ("Нашлись такие цвета: %s" % ", ".join(names))
             lut_sets = [set(x) for x in Colornik.LUTS]
             palette = lut_sets.index(keys)
@@ -65,7 +62,6 @@ class Colornik:
         except:
             print ("Не получилось угадать палитру, принимаем 0 (NRGB)")
             palette = 0
-        self.palette_index = palette
         return palette
 
     def histogram(self):
@@ -79,19 +75,11 @@ class Colornik:
 
         return h3[:4]
 
-    def force_palette(self, n):
-        if n >= 0 and n < 8:
-            self.forced = n
-            self.palette_index = n
-        else:
-            raise Exception("Палитра может быть от 0 до 7")
-
-    def identify(self):
-        if self.forced == None:
+    def identify_palette(self):
+        if self.palette_index == None:
             h = self.histogram()
-            self.lut = Colornik.LUTS[self.match_histogram(h)]
-        else:
-            self.lut = Colornik.LUTS[self.forced]
+            self.palette_index = self.match_histogram(h)
+        self.lut = Colornik.LUTS[self.palette_index]
 
     # quantize and convert to indexed bytes with values 0,1,2,3
     def quantize(self):
@@ -126,38 +114,32 @@ class Colornik:
         return ncolumns, self.vlines, data                
 
     def process(self):
-        self.identify()
+        self.identify_palette()
         indexed = self.quantize()
-        return self.columnify(indexed)
-
-    def get_data_label(self):
-        return self.origname
-
-    def get_dimensions(self):
-        return self.hpixels/4, self.vlines
-
-    def get_palette_index(self): return self.palette_index
+        return self.columnify(indexed) + (self.palette_index,)
 
 class Encodnik:
     BYTES = 0
     BASE64 = 1
 
-    def __init__(self, source, mode=BYTES):
-        self.source = source
-        self.mode = mode
+    def get(mode):
+        if mode == Encodnik.BASE64:
+            return Encodnik.encode64
+        else:
+            return Encodnik.encode
 
-    def encode(self):
-        label = self.source.get_data_label()
-        nc,nr,octets = self.source.process()
-
+    def encode64(label, nc, nr, octets):
         result = '%s_nc:\tdb %d\n' % (label,nc)
         result += '%s_nr:\tdb %d\n' % (label,nr)
-        if self.mode == Encodnik.BASE64:
-            result += '%s:\tdb64 %s\n' % (label, b64encode(octets).decode('latin1'))
-        else:
-            result += '%s:\tdb ' % (label) + \
-                '\n\tdb '.join([','.join(['$%02x'%x for x in chunk]) 
-                    for chunk in chunker(octets,16)])
+        result += '%s:\tdb64 %s\n' % (label, b64encode(octets).decode('latin1'))
+        return result
+
+    def encode(self):
+        result = '%s_nc:\tdb %d\n' % (label,nc)
+        result += '%s_nr:\tdb %d\n' % (label,nr)
+        result += '%s:\tdb ' % (label) + \
+            '\n\tdb '.join([','.join(['$%02x'%x for x in chunk]) 
+                for chunk in chunker(octets,16)])
        
         return result
 
@@ -175,14 +157,14 @@ def usagi():
             for i,y in enumerate(Colornik.LUTS)]
     print("\n".join(m1))
 
-def getparams():
+def getparams(argv):
     inputname=None
     asmname=None
     encodage=Encodnik.BYTES
     stub=False
     palette=None
 
-    for i,v in enumerate(sys.argv[1:]):
+    for i,v in enumerate(argv[1:]):
         if v[0] == '-':
             if v[1:] == 'base64':
                 encodage=Encodnik.BASE64
@@ -191,8 +173,10 @@ def getparams():
             elif v[1:4] == 'pal':
                 try:
                     palette = int(v[4])
+                    if palette > 7:
+                        raise Exception("big")
                 except:
-                    print("Форсирование палитры с индексом 3: -pal3")
+                    print("Пример: форсирование палитры с индексом 3: -pal3")
                     exit(1)
             else:
                 print("Нет такой опции: ", v)
@@ -214,34 +198,38 @@ def getparams():
     basename = os.path.basename(inputname)
     (shortname, ext) = os.path.splitext(basename)
 
-    return inputname,asmname,shortname,encodage,stub,palette
-
+    p = lambda: None
+    setattr(p, 'inputname', inputname)
+    setattr(p, 'asmname', asmname)
+    setattr(p, 'shortname', shortname)
+    setattr(p, 'encodage', encodage)
+    setattr(p, 'stub', stub)
+    setattr(p, 'palette', palette)
+    return p
 
 if len(sys.argv) < 2:
     usagi()
     exit(1)
 
-inputname,asmname,shortname,encodage,stub,palette = getparams()
+param = getparams(sys.argv)
 
-nc,nr,pic = readPNG(inputname)
+input_nc,input_nr,pic = readPNG(param.inputname)
 if pic == None:
     print("Чего-то не так с картинкой, должен быть цветной PNG")
     exit(0)
 
-print ('Открылась картинка %s %dx%d' % (inputname, nc, nr))
+print ('Открылась картинка %s %dx%d' % (param.inputname, input_nc, input_nr))
 
-k = Colornik(pic, shortname)
-if palette != None:
-    k.force_palette(palette)
+nc,nr,octets,palette = Colornik(pic, param.palette).process()
 
-encodnik = Encodnik(k, encodage)
+encode = Encodnik.get(param.encodage)
 
-print("Записываем результат в %s" % asmname)
+print("Записываем результат в %s" % param.asmname)
 
-with open(asmname, "w") as fo:
-    if stub:
-        fo.write(Stubnik().gettext(shortname, encodnik.encode(), 
-            k.get_palette_index()))
+with open(param.asmname, "w") as fo:
+    if param.stub:
+        fo.write(Stubnik().gettext(param.shortname, 
+            encode(param.shortname, nc, nr, octets), palette))
     else:
         fo.write(encodnik.encode())
 
