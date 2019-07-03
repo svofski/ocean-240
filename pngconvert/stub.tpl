@@ -1,4 +1,4 @@
-        .project %s.ok
+        .project %(label)s.ok
 
 SCROLL_V        equ     0C0h
 BANKING         equ     0C1h
@@ -12,7 +12,7 @@ SCREEN_COL      equ	0
 
         org     100h
 
-        mvi     a, 40h+%d          ; палитра
+        mvi     a, 40h+%(palette_index)d          ; палитра
         out     VIDEO
         call    ResetScroll
         call    ClearScreen
@@ -25,17 +25,17 @@ DrawBitmap:
         mvi a, ENROM
         out BANKING
 
-        lxi b, %s
+        lxi b, %(label)s
         mvi h, (SCREEN >> 8)+SCREEN_COL
         dcr h
-        lda %s_nc
+        lda %(label)s_nc
         mov d, a
         
 drwbmp_nextcol
         inr h
         mvi l, SCREEN_ROW
         
-        lda %s_nr
+        lda %(label)s_nr
         mov e, a
         
 drwbmp_nextrow
@@ -81,4 +81,6 @@ Cls     mvi     m, 0
         out     BANKING
         ei
         ret
-%s
+
+%(dbtext)s
+

@@ -13,7 +13,9 @@ class Stubnik:
             self.text = fi.read()
     
     def gettext(self, label, db, palidx):
-        return self.text % (label, palidx, label, label, label, db)
+        args = {'label': label, 'palette_index': palidx, 'dbtext': db}
+        return self.text % args
+        #return self.text % (label, palidx, label, label, label, db)
    
 class Colornik:
     RED = getNearest233((255,0,0,255))
