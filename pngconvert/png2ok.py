@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import sys
 import os
 from operator import itemgetter
@@ -136,7 +136,7 @@ class Encodnik:
         result += '%s:\tdb64 %s\n' % (label, b64encode(octets).decode('latin1'))
         return result
 
-    def encode(self):
+    def encode(label, nc, nr, octets):
         result = '%s_nc:\tdb %d\n' % (label,nc)
         result += '%s_nr:\tdb %d\n' % (label,nr)
         result += '%s:\tdb ' % (label) + \
@@ -233,6 +233,6 @@ with open(param.asmname, "w") as fo:
         fo.write(Stubnik().gettext(param.shortname, 
             encode(param.shortname, nc, nr, octets), palette))
     else:
-        fo.write(encodnik.encode())
+        fo.write(encode(param.shortname, nc, nr, octets))
 
 
